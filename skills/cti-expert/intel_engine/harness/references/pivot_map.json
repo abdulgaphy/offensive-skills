@@ -1,0 +1,249 @@
+{
+  "_comment": "Cross-type auto-pivot ROUTE MAP for the SDK harness proposer (tools/selector_types.py). Each route names a collector query surface and the selector TYPES it accepts. auto_max_hits is the ceiling below which a free or urlscan (quota-backed) pivot may run without per-round approval; metered routes and unknown/oversized hit counts always need approval. filename_exts is the extension list the classifier uses to refuse seeding a file as a host (invoice.zip must never cost a WHOIS). Edit routes here when a new corpus field is wired — never hardcode a type→tool map in Python. RULE 1: no case data.",
+
+  "auto_max_hits": {
+    "_comment": "Free or quota-backed (urlscan Pro) pivots whose count_probe returns a hit count at or below this number run automatically. Above it, or when the count is unknown (null), the pivot goes into the digest-bound proposal.json for one approval per round. Lower to be stricter; raise only when the corpus is known-cheap. Fallback in code is 0 (everything needs approval).",
+    "max": 25
+  },
+
+  "max_typed_hops": {
+    "_comment": "Expansion bound for the cross-type node registry (state.json `nodes`): a typed node at or beyond this hop from the seeds is recorded but never pivoted again, so a chain email → domain → wallet → domain → filename → domain still converges. Each hop is one corpus pivot. Fallback in code is 2.",
+    "max": 6
+  },
+
+  "page_selector_cap": {
+    "_comment": "Per-type ceiling on kit/neighbour typed pivots (page-scraped phones/emails, kit tokens, co-tenant selectors) that case_state.propose() sizes with a count probe and offers in one round. Candidates are ranked first, so the best-corroborated survive; anything over the cap is never probed (no vendor count call) and never offered. Owner-rung pivots (registrant WHOIS contacts, analytics IDs, operator wallets) are never capped by this rule. Exists because a phone-directory page yields thousands of strangers' numbers. Fallback in code is 25.",
+    "max": 25
+  },
+
+  "propose_type_exclude": {
+    "_comment": "Route → selector types case_state.propose() must never OFFER on that route (a manual corpus-search may still run it). anyrun.lookup on an IP returns sandbox detonations that merely contacted the address — no ownership yield. ghw.git_committers on a domain duplicates the per-apex GrayHatWarfare auto-fire the pipeline already ran for the estate. Fallback in code: {anyrun.lookup: [ip]}.",
+    "entries": {
+      "anyrun.lookup": ["ip"],
+      "ghw.git_committers": ["domain"]
+    }
+  },
+
+  "filename_exts": {
+    "_comment": "Final-extension tokens that mark a bare token as a FILENAME rather than a domain. Checked BEFORE the bare-domain regex so invoice.zip / setup.app / clip.mov never parse as PSL apexes and never get charged for WHOIS. A collector hint='domain' or an analyst 'domain:' prefix still forces domain. Add an extension here when a real TLD-collision seeds a host by mistake.",
+    "values": [
+      "zip", "apk", "exe", "msi", "dmg", "js", "php", "pdf",
+      "app", "mov", "rar", "7z", "jar", "html"
+    ]
+  },
+
+  "routes": {
+    "_comment": "Collector route key → {types, metered, count_probe, field?, mention_only?, approval?, admit?, round_cap?, collected_only?, recheck_days?}. `types` is the selector kinds this route accepts. `metered` true means the call spends third-party credits and ALWAYS needs approval (even under auto_max_hits). `count_probe` names how hit-count is obtained before dispatch: size1 (urlscan size=1 probe), total (wayback collection total), preview (rwhois free preview count), single (one bounded lookup → 1, runs automatically), none (unknown → forces approval). `approval: always` = never probed, always a proposal item (outbound/session-bound routes). `admit: registrant_or_seed` = offered only for a WHOIS-registrant contact or an analyst seed. `round_cap` = at most N candidates of the route per propose() round. `recheck_days` = a collected_only route re-offered once per domain per N days. `field` is the corpus field the query targets. `mention_only` true means hits are stored as facts only, never edges/clusters/operator_leads.",
+
+    "urlscan.title": {
+      "types": ["string"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "page.title"
+    },
+    "urlscan.text_content": {
+      "types": ["string", "wallet", "phone"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "text.content"
+    },
+    "urlscan.filename": {
+      "types": ["filename"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "filename"
+    },
+    "urlscan.files": {
+      "types": ["filename"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "files.filename"
+    },
+    "urlscan.hash": {
+      "types": ["hash"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "hash"
+    },
+    "urlscan.identifier": {
+      "types": ["string", "wallet", "telegram"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "content.identifiers"
+    },
+    "urlscan.links": {
+      "types": ["domain"],
+      "metered": false,
+      "count_probe": "size1",
+      "field": "links.domains"
+    },
+    "wayback.telegram": {
+      "types": ["string", "wallet", "phone", "telegram"],
+      "metered": false,
+      "count_probe": "total"
+    },
+    "wayback.pdf": {
+      "types": ["string", "filename"],
+      "metered": false,
+      "count_probe": "total"
+    },
+    "wayback.news": {
+      "types": ["string", "domain"],
+      "metered": false,
+      "count_probe": "total",
+      "mention_only": true
+    },
+    "fofa.body": {
+      "types": ["string", "filename"],
+      "metered": true,
+      "count_probe": "none"
+    },
+    "publicwww.source": {
+      "types": ["string", "filename"],
+      "metered": true,
+      "count_probe": "none"
+    },
+    "webamon.corpus": {
+      "types": ["string", "hash", "filename"],
+      "metered": false,
+      "count_probe": "none"
+    },
+    "email.deep": {
+      "types": ["email"],
+      "metered": true,
+      "count_probe": "none"
+    },
+    "phone.osint": {
+      "types": ["phone"],
+      "metered": false,
+      "count_probe": "none"
+    },
+    "rwhois.purchase": {
+      "types": ["email", "phone"],
+      "metered": true,
+      "count_probe": "preview"
+    },
+    "crypto.counterparties": {
+      "types": ["wallet"],
+      "metered": false,
+      "count_probe": "none"
+    },
+    "anyrun.lookup": {
+      "types": ["hash", "domain", "ip"],
+      "metered": true,
+      "count_probe": "none"
+    },
+    "binary.analyze": {
+      "types": ["hash"],
+      "metered": false,
+      "count_probe": "none"
+    },
+    "ghw.git_code": {
+      "_comment": "GrayHatWarfare git corpus: public repository files whose CONTENT carries the token (tracker id, wallet, distinctive kit string — a string with spaces or under 10 chars is rejected by query_for). Only raw-verified hits are git.code (kit, fact-only — never a node); the rest are mentions. Metered: always in the round's proposal.",
+      "types": ["string", "wallet"],
+      "metered": true,
+      "count_probe": "none"
+    },
+    "ghw.git_committers": {
+      "_comment": "GrayHatWarfare git corpus: committer identities for an exact e-mail (or, by manual corpus-search, a self-hosted mail domain — managed mail is refused). Rows are git.committer_email (kit): self-asserted author e-mails, leads to confirm with github_harvest.",
+      "types": ["email", "domain"],
+      "metered": true,
+      "count_probe": "none"
+    },
+    "ghw.short_handle": {
+      "_comment": "GrayHatWarfare shortener corpus: the goo.gl/bit.ly short links whose long URL is the Telegram handle or WhatsApp number — when and how the operator spread it. Historical (2017–2025).",
+      "types": ["telegram", "phone"],
+      "metered": true,
+      "count_probe": "none",
+      "mention_only": true
+    },
+    "enrich.host": {
+      "_comment": "FULL keyed enrichment of a host the loop already collected free-only (pivot_extract's enrich_live engines + the default reverse-WHOIS purchase). Loop-driven collects always run --free-only; this metered item is how a host gets the keyed layers — only after the analyst approves it. collected_only: proposed for collected hosts, never for KB-linked peers.",
+      "types": ["domain"],
+      "metered": true,
+      "count_probe": "none",
+      "collected_only": true
+    },
+
+    "pgp.lookup": {
+      "_comment": "IDENTITY (free, keyless): the public keyservers (wp_pgp / pgp_lookup) for an e-mail. Rows: other UID e-mails (pgp.uid_email, kit — self-asserted leads that may pivot again); UID names, key fingerprints and certifier key ids are fact-only (rungs.json fact_only_node_classes). count_probe single = one bounded lookup, so it runs automatically.",
+      "types": ["email"],
+      "metered": false,
+      "count_probe": "single"
+    },
+    "corp.registry": {
+      "_comment": "IDENTITY (free): company-mode corporate-registry search (wp_corp / corp_registry) over the KEYLESS providers only (GLEIF, Companies House, recherche-entreprises, Brønnøysund, PRH, SEC EDGAR; VN routes to vn_corp). Jurisdiction = scope.json `jurisdiction`, else the case's single shared ccTLD, else none (global GLEIF). Every row is fact-only: officers are homonym candidates (corp.officer, neighbour), company numbers / LEIs are registry facts (corp.company_id, kit). Never an owner edge.",
+      "types": ["org"],
+      "metered": false,
+      "count_probe": "single"
+    },
+    "corp.opencorporates": {
+      "_comment": "IDENTITY (free, account-bound): the same company search on the OpenCorporates FREE WEBSITE via CloakBrowser (wp_corp website mode — company search, then the top company pages' officer lists), signed in with the analyst's free account. Offered only when cloakbrowser is importable AND a saved session (~/.config/cti-expert/sessions/opencorporates.json / $OPENCORPORATES_SESSION) or OPENCORPORATES_EMAIL + OPENCORPORATES_PASSWORD exist (route_runnable, offline). Free, so it runs automatically (count_probe single), but round_cap 2 because each call drives a slow browser on the analyst's account. The premium API (OPENCORPORATES_API_TOKEN) is NOT used by this route — it stays a metered secondary of the corp_registry tool only. Same fact-only rows as corp.registry.",
+      "types": ["org"],
+      "metered": false,
+      "count_probe": "single",
+      "round_cap": 2
+    },
+    "telegram.resolve": {
+      "_comment": "IDENTITY (free, read-only): resolve a @handle / t.me link with the analyst's Telethon research session (wp_telegram mode resolve). Offered only when Telethon + a session exist (offline check, no network). Rows: the account's other usernames (telegram.account, kit) and its numeric id (telegram.account_id, fact-only). round_cap bounds flood-limit exposure per round.",
+      "types": ["telegram"],
+      "metered": false,
+      "count_probe": "single",
+      "round_cap": 10
+    },
+    "telegram.phone": {
+      "_comment": "GATED (outbound on the research account): contact-import lookup of a phone (wp_telegram mode phone). ALWAYS a proposal item (approval: always) and admitted only for a registrant phone or an analyst seed (admit: registrant_or_seed). The analyst's approval of the item IS the confirm: pivot_routes runs the import only when cases/<case>/proposal.json holds an approved, unused item for this exact query, and marks it used. Research account only — Telegram ToS / per-day import limits apply; hooks/references/outbound_actions.json still prompts on a direct corpus_search call.",
+      "types": ["phone"],
+      "metered": false,
+      "count_probe": "none",
+      "approval": "always",
+      "admit": "registrant_or_seed"
+    },
+    "google.account": {
+      "_comment": "GATED: GHunt profile lookup of a gmail.com / googlemail.com address with the analyst's own GHunt session (wp_google). Offered only when GHunt is installed and a session file is present (wp_google dry-run logic, no network); only for a registrant e-mail or an analyst seed. Always a proposal item. Rows: Gaia id / profile name fact-only; the public profile photo URL is an image_url lead (google.profile_photo, kit).",
+      "types": ["email"],
+      "metered": false,
+      "count_probe": "none",
+      "approval": "always",
+      "admit": "registrant_or_seed",
+      "email_domains": ["gmail.com", "googlemail.com"]
+    },
+    "revimg.links": {
+      "_comment": "IDENTITY (free, third-party query): reverse-image search of a PUBLIC image URL (wp_revimg, URL mode — never a local file, never an upload). The query goes to a third-party engine, so it is capped per round (round_cap). Hits are fact-only neighbours (revimg.hit): pages showing the same picture, never the same person.",
+      "types": ["image_url"],
+      "metered": false,
+      "count_probe": "single",
+      "round_cap": 5
+    },
+    "takedown.watch": {
+      "_comment": "ESTATE (free): RDAP hold / DNS NXDOMAIN / sinkhole status + successor hunt on the last known IPs (wp_takedown) for a COLLECTED case domain whose capture classifies (wp_liveness, offline) into one of trigger_states, or whose WHOIS status carries a hold. Re-offered at most once per domain per recheck_days. Successors are content-matched kit siblings (takedown.kit_sibling, kit) or co-tenant leads (takedown.cotenant, neighbour, fact-only).",
+      "types": ["domain"],
+      "metered": false,
+      "count_probe": "single",
+      "collected_only": true,
+      "recheck_days": 7,
+      "trigger_states": ["unresolved", "parked", "suspended"]
+    },
+    "container.registry": {
+      "_comment": "ESTATE (free, anonymous): container-registry namespace listing (wp_container, namespace mode, never --layers) for an org whose name is a registry slug, or a code-hosting namespace (a GitHub owner linked from a case page → ghcr.io/<owner>; an OCI image.source label). Rows: identity labels / config authors (container.identity_email kit; names fact-only), the registry namespace (container.namespace, fact-only) and source repositories (namespace → ghcr.io owner, container.source_repo, kit). Capped per round.",
+      "types": ["org", "namespace"],
+      "metered": false,
+      "count_probe": "single",
+      "round_cap": 10
+    },
+    "masked.hint": {
+      "_comment": "ESTATE (pure, offline): test a masked e-mail/phone hint an account-existence lookup returned (osint_industries / deep_profile `email_hint` / `phone_hint`) against the case's KNOWN e-mails/phones (masked_hint). Verdicts are corroborating facts on the matched existing selector only (masked_hint.match, fact-only) — never a new node, never an edge. Query = `<provider>:<hint>`.",
+      "types": ["masked_hint"],
+      "metered": false,
+      "count_probe": "single"
+    }
+  },
+
+  "selector_sources": {
+    "_comment": "Case-artifact keys propose() reads for selector types no collector writes into the KB. image_url_keys: JSON keys under cases/<id>/ (raw/ dom/ evidence/ report/ excluded) whose http(s) value is a public profile-photo / avatar URL → image_url candidates. masked_hint_keys: the account-lookup keys carrying a masked e-mail/phone. image_exts: a URL whose path ends in one of these is classified image_url, never a domain to collect. max_file_bytes bounds the scan.",
+    "image_url_keys": ["avatar_url", "profile_photo", "profile_image", "photo_url", "avatar"],
+    "masked_hint_keys": ["email_hint", "phone_hint"],
+    "image_exts": ["jpg", "jpeg", "png", "gif", "webp", "bmp"],
+    "max_file_bytes": 4000000
+  }
+}
